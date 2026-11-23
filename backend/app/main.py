@@ -1,3 +1,4 @@
+from app.resume import router as resume_router
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, text
@@ -7,9 +8,9 @@ from app.core.config import settings
 app = FastAPI(title="CareerPilot AI API", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173"],
+    allow_origins=["http://localhost:3000", "http://localhost:3002", "http://localhost:5173"],
     allow_credentials=False,
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
@@ -28,3 +29,5 @@ def status():
         return {"api": "online", "database": "connected", "pgvector": bool(vector_enabled), "ollama_model": settings.ollama_model, "ollama": "not checked"}
     except SQLAlchemyError:
         return {"api": "online", "database": "unavailable", "pgvector": False, "ollama_model": settings.ollama_model, "ollama": "not checked"}
+
+app.include_router(resume_router)
