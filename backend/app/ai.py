@@ -68,7 +68,7 @@ async def ai_feedback(resume: UploadFile = File(...), job_description: str = For
         async with httpx.AsyncClient(timeout=180.0) as client:
             response = await client.post(
                 f"{settings.ollama_base_url.rstrip('/')}/api/generate",
-                json={'model': settings.ollama_model, 'prompt': prompt, 'stream': False, 'format': 'json', 'options': {'temperature': 0.2, 'num_predict': 800}},
+                json={'model': settings.ollama_model, 'prompt': prompt, 'stream': False, 'think': False, 'format': 'json', 'options': {'temperature': 0.2, 'num_predict': 800}},
             )
             response.raise_for_status()
             output = response.json().get('response', '')
