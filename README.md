@@ -49,3 +49,20 @@ The backend currently stores the Ollama URL/model setting but does not call the 
 - Schema changes after Phase 1 should use Alembic migrations; the `init.sql` file only runs when the database volume is first initialized.
 - Dependencies use compatible version ranges for bootstrapping. Add lockfiles/pinned versions and CI in the next hardening phase.
 - Do not commit real resumes, credentials, or user data.
+
+## Application Screenshots
+
+### Main Dashboard
+![CareerPilot AI Dashboard](docs/screenshots/dashboard.png)
+
+### Job Discovery
+![Job Discovery](docs/screenshots/job-discovery.png)
+
+### Application Tracking
+![Application Tracker](docs/screenshots/application-tracker.png)
+
+### Interview Management
+![Interview Dashboard](docs/screenshots/interview-dashboard.png)
+
+### Application Analytics
+![Application Analytics](docs/screenshots/analytics.png)
