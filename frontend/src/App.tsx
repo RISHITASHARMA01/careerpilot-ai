@@ -76,6 +76,31 @@ export default function App() {
     finally { setRecommendLoading(false) }
   }
 
+  const [chatMessage, setChatMessage] = useState('')
+  const [chatHistory, setChatHistory] = useState<{role: 'user' | 'assistant'; content: string}[]>([])
+  const [chatBusy, setChatBusy] = useState(false)
+  const [chatError, setChatError] = useState('')
+
+  async function sendChat(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const message = chatMessage.trim()
+    if (!message || chatBusy) return
+    setChatBusy(true); setChatError('')
+    const history = chatHistory.slice(-6)
+    const form = new FormData()
+    form.append('message', message)
+    form.append('history', JSON.stringify(history))
+    if (file) form.append('resume', file)
+    try {
+      const response = await fetch(`${API}/api/v1/chat`, {method: 'POST', body: form})
+      const data = await response.json()
+      if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'Chat failed')
+      setChatHistory(prev => [...prev, {role: 'user', content: message}, {role: 'assistant', content: data.answer}])
+      setChatMessage('')
+    } catch (err) { setChatError(err instanceof Error ? err.message : 'Chat failed') }
+    finally { setChatBusy(false) }
+  }
+
   return <main>
     <div className="eyebrow">CAREERPILOT AI · PHASE 3</div>
     <h1>Understand your resume. Find your next opportunity.</h1>
@@ -131,6 +156,21 @@ export default function App() {
           {job.source_url && <a href={job.source_url} target="_blank" rel="noopener noreferrer">View job posting</a>}
         </article>)}
       </div>}
+    </section>
+    <section>
+      <h2>Career assistant (Phase 3D)</h2>
+      <p className="muted">Ask about your career, resume, and locally indexed jobs. Optionally select a PDF resume above to provide context. Conversations are kept in this browser session only.</p>
+      <div className="results" aria-live="polite">
+        {chatHistory.length === 0 && <p className="muted">Try: Which indexed jobs match my skills?</p>}
+        {chatHistory.map((m, i) => <div key={i} style={{marginBottom: '1rem', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere'}}><strong>{m.role === 'user' ? 'You' : 'CareerPilot'}</strong><p>{m.content}</p></div>)}
+      </div>
+      <form onSubmit={sendChat}>
+        <label htmlFor="chat-message">Your question</label>
+        <textarea id="chat-message" rows={3} maxLength={2000} value={chatMessage} onChange={e => setChatMessage(e.target.value)} placeholder="What jobs match my resume?" required />
+        <button type="submit" disabled={chatBusy || !chatMessage.trim()}>{chatBusy ? 'Thinking…' : 'Ask CareerPilot'}</button>
+        <button type="button" disabled={chatBusy || chatHistory.length === 0} onClick={() => setChatHistory([])}>Clear conversation</button>
+      </form>
+      {chatError && <p role="alert" className="error">{chatError}</p>}
     </section>
     <section><h2>System status</h2>{statusError ? <p className="error">Backend connection failed: {statusError}</p> : !status ? <p>Checking services…</p> : <div className="stats"><div><span>API</span><strong>{status.api}</strong></div><div><span>PostgreSQL</span><strong>{status.database}</strong></div><div><span>pgvector</span><strong>{status.pgvector ? 'enabled' : 'unavailable'}</strong></div><div><span>Local LLM</span><strong>{status.ollama_model}</strong><small>Connectivity: {status.ollama}</small></div></div>}</section>
     <p className="foot">Next: Ollama-powered resume suggestions, semantic job search, and agent workflows.</p>

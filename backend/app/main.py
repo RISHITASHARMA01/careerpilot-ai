@@ -1,3 +1,4 @@
+from app.chat import router as chat_router
 from app.recommendations import router as recommendations_router
 from app.jobs import router as jobs_router
 from app.ai import router as ai_router
@@ -40,3 +41,5 @@ app.include_router(ai_router)
 app.include_router(jobs_router)
 
 app.include_router(recommendations_router)
+
+app.include_router(chat_router)
