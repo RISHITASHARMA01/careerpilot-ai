@@ -16,3 +16,23 @@ __pycache__/
 .venv/
 node_modules/
 dist/
+
+# Local frontend artifacts
+**/node_modules/
+**/dist/
+*.tsbuildinfo
+
+# Development backups
+*.bak
+*.phase*.bak
+
+# Temporary installation scripts
+/install_phase5f.py
+/phase4d_patch.py
+
+# Local secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key

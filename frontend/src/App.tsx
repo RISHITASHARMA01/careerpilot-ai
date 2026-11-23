@@ -1,3 +1,8 @@
+import DataExport from './DataExport'
+import ApplicationAnalytics from './ApplicationAnalytics'
+import InterviewDashboard from './InterviewDashboard'
+import ApplicationTracker from './ApplicationTracker'
+import ApplicationWorkspace from './ApplicationWorkspace'
 import { useEffect, useState, type FormEvent } from 'react'
 
 type Status = { api: string; database: string; pgvector: boolean; ollama_model: string; ollama: string }
@@ -7,6 +12,97 @@ type Analysis = {
   resume_word_count: number; note: string
 }
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8002'
+
+type DiscoveredJob = {
+  id: string
+  title: string
+  company: string
+  location: string | null
+  source: string | null
+  source_url: string | null
+  published_at: string | null
+}
+
+function JobDiscoveryDashboard() {
+  const [jobs, setJobs] = useState<DiscoveredJob[]>([])
+  const [query, setQuery] = useState('')
+  const [source, setSource] = useState('all')
+  const [level, setLevel] = useState('all')
+  const [loadingJobs, setLoadingJobs] = useState(false)
+  const [jobError, setJobError] = useState('')
+
+  async function loadJobs() {
+    setLoadingJobs(true)
+    setJobError('')
+    try {
+      const response = await fetch(`${API}/api/v1/discovery/jobs?limit=100`)
+      if (!response.ok) throw new Error(`Could not load jobs (HTTP ${response.status})`)
+      const data: { jobs?: DiscoveredJob[] } = await response.json()
+      if (!Array.isArray(data.jobs)) throw new Error('Unexpected discovery response')
+      setJobs(data.jobs)
+    } catch (err) {
+      setJobError(err instanceof Error ? err.message : 'Could not load jobs')
+    } finally {
+      setLoadingJobs(false)
+    }
+  }
+
+  useEffect(() => { void loadJobs() }, [])
+
+  const filtered = jobs.filter(job => {
+    const text = `${job.title} ${job.company} ${job.location || ''}`.toLowerCase()
+    const title = job.title.toLowerCase()
+    if (query && !text.includes(query.toLowerCase().trim())) return false
+    if (source !== 'all' && job.source !== source) return false
+    if (level === 'entry' && !/\b(intern|internship|junior|entry.level|graduate|trainee|fresher|associate)\b/i.test(title)) return false
+    if (level === 'exclude-senior' && /\b(senior|sr\.?|lead|principal|staff|director|head|architect)\b/i.test(title)) return false
+    return true
+  })
+  const sources = Array.from(new Set(jobs.map(job => job.source).filter((x): x is string => Boolean(x))))
+
+  return <section id="job-discovery" className="discovery">
+    <div className="discovery-heading">
+      <div>
+        <div className="eyebrow">PHASE 4D · LIVE IMPORTED JOBS</div>
+        <h2>Discover opportunities</h2>
+        <p className="muted">Browse jobs imported into your local database. Verify location and experience requirements on the employer's posting.</p>
+      </div>
+      <button type="button" onClick={() => void loadJobs()} disabled={loadingJobs}>
+        {loadingJobs ? 'Loading…' : 'Refresh jobs'}
+      </button>
+    </div>
+    <div className="discovery-filters">
+      <div><label htmlFor="job-search">Search roles, companies, locations</label>
+        <input id="job-search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Python, backend, Bengaluru…" /></div>
+      <div><label htmlFor="job-source">Source</label>
+        <select id="job-source" value={source} onChange={e => setSource(e.target.value)}>
+          <option value="all">All sources</option>
+          {sources.map(s => <option key={s} value={s}>{s}</option>)}
+        </select></div>
+      <div><label htmlFor="job-level">Title-based experience filter</label>
+        <select id="job-level" value={level} onChange={e => setLevel(e.target.value)}>
+          <option value="all">All levels</option>
+          <option value="entry">Explicitly entry-level</option>
+          <option value="exclude-senior">Exclude senior titles</option>
+        </select></div>
+    </div>
+    <p className="muted" aria-live="polite">Showing {filtered.length} of {jobs.length} imported jobs (up to 100 loaded).</p>
+    {jobError && <p role="alert" className="error">{jobError}</p>}
+    {!loadingJobs && !jobError && filtered.length === 0 && <p className="muted">No matching jobs. Try clearing the filters or importing more jobs.</p>}
+    <div className="job-grid">
+      {filtered.map(job => <article className="job-card" key={job.id}>
+        <div className="job-card-top"><span className="source-tag">{job.source || 'Imported'}</span>
+          {job.published_at && <span className="muted">{new Date(job.published_at).toLocaleDateString()}</span>}</div>
+        <h3>{job.title}</h3>
+        <p className="job-company">{job.company}</p>
+        <p className="muted">Location: {job.location || 'Not specified'}</p>
+        {job.source_url && /^https?:\/\//i.test(job.source_url)
+          ? <a className="job-link" href={job.source_url} target="_blank" rel="noopener noreferrer">View original posting ↗</a>
+          : <span className="muted">No application link available</span>}
+      </article>)}
+    </div>
+  </section>
+}
 
 export default function App() {
   const [status, setStatus] = useState<Status | null>(null)
@@ -102,9 +198,10 @@ export default function App() {
   }
 
   return <main>
-    <div className="eyebrow">CAREERPILOT AI · PHASE 3</div>
+    <div className="eyebrow">CAREERPILOT AI · PHASE 4D</div>
     <h1>Understand your resume. Find your next opportunity.</h1>
     <p className="lead">Upload a PDF resume and compare its technical skills with a job description.</p>
+    <JobDiscoveryDashboard />
     <section>
       <h2>Resume skill match</h2>
       <form onSubmit={submit}>
@@ -174,5 +271,10 @@ export default function App() {
     </section>
     <section><h2>System status</h2>{statusError ? <p className="error">Backend connection failed: {statusError}</p> : !status ? <p>Checking services…</p> : <div className="stats"><div><span>API</span><strong>{status.api}</strong></div><div><span>PostgreSQL</span><strong>{status.database}</strong></div><div><span>pgvector</span><strong>{status.pgvector ? 'enabled' : 'unavailable'}</strong></div><div><span>Local LLM</span><strong>{status.ollama_model}</strong><small>Connectivity: {status.ollama}</small></div></div>}</section>
     <p className="foot">Next: Ollama-powered resume suggestions, semantic job search, and agent workflows.</p>
+    <ApplicationWorkspace apiUrl={API} />
+    <ApplicationTracker apiUrl={API} />
+    <InterviewDashboard apiUrl={API} />
+    <ApplicationAnalytics apiUrl={API} />
+    <DataExport apiUrl={API} />
   </main>
 }

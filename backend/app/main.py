@@ -1,3 +1,10 @@
+from app.interviews import router as interviews_router
+from app.applications import router as applications_router
+from app.application_questions import router as application_questions_router
+from app.cover_letter import router as cover_letter_router
+from app.agent_fit import router as agent_fit_router
+from app.agent import router as agent_router
+from app.discovery import router as discovery_router
 from app.chat import router as chat_router
 from app.recommendations import router as recommendations_router
 from app.jobs import router as jobs_router
@@ -43,3 +50,17 @@ app.include_router(jobs_router)
 app.include_router(recommendations_router)
 
 app.include_router(chat_router)
+
+app.include_router(discovery_router)
+
+app.include_router(agent_router)
+
+app.include_router(agent_fit_router)
+
+app.include_router(cover_letter_router)
+
+app.include_router(application_questions_router)
+
+app.include_router(applications_router)
+
+app.include_router(interviews_router)
