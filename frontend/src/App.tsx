@@ -16,6 +16,9 @@ export default function App() {
   const [result, setResult] = useState<Analysis | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState('')
+  const [aiResult, setAiResult] = useState<{feedback: {summary: string; strengths: string[]; improvements: string[]; suggested_bullets: string[]}; model: string} | null>(null)
 
   useEffect(() => {
     fetch(`${API}/api/v1/status`)
@@ -40,8 +43,23 @@ export default function App() {
     } finally { setLoading(false) }
   }
 
+  async function requestAiFeedback() {
+    if (!file || !jobDescription.trim()) return
+    setAiLoading(true); setAiError(''); setAiResult(null)
+    const form = new FormData()
+    form.append('resume', file)
+    form.append('job_description', jobDescription)
+    try {
+      const response = await fetch(`${API}/api/v1/resume/ai-feedback`, {method: 'POST', body: form})
+      const data = await response.json()
+      if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'AI analysis failed')
+      setAiResult(data)
+    } catch (err) { setAiError(err instanceof Error ? err.message : 'AI analysis failed') }
+    finally { setAiLoading(false) }
+  }
+
   return <main>
-    <div className="eyebrow">CAREERPILOT AI · PHASE 2</div>
+    <div className="eyebrow">CAREERPILOT AI · PHASE 3</div>
     <h1>Understand your resume. Find your next opportunity.</h1>
     <p className="lead">Upload a PDF resume and compare its technical skills with a job description.</p>
     <section>
@@ -64,6 +82,19 @@ export default function App() {
         <h3>Other detected resume skills</h3>
         <div className="chips">{result.resume_skills.filter(s => !result.matched_skills.includes(s)).map(s => <span className="chip" key={s}>{s}</span>)}</div>
         <p className="muted">Extracted {result.resume_word_count} words from your resume. Files are processed in memory and are not saved by this feature.</p>
+      </div>}
+    </section>
+    <section>
+      <h2>AI career feedback (local Ollama)</h2>
+      <p className="muted">Uses the PDF and job description entered above. Processing may take a few minutes on CPU.</p>
+      <button type="button" disabled={!file || !jobDescription.trim() || aiLoading} onClick={requestAiFeedback}>{aiLoading ? 'Generating feedback…' : 'Generate AI feedback'}</button>
+      {aiError && <p role="alert" className="error">{aiError}</p>}
+      {aiResult && <div className="results" aria-live="polite">
+        <p className="muted">Model: {aiResult.model} · AI output should be verified before using.</p>
+        <h3>Summary</h3><p>{aiResult.feedback.summary}</p>
+        <h3>Strengths</h3><ul>{aiResult.feedback.strengths.map((x,i) => <li key={i}>{x}</li>)}</ul>
+        <h3>Areas to improve</h3><ul>{aiResult.feedback.improvements.map((x,i) => <li key={i}>{x}</li>)}</ul>
+        <h3>Suggested bullet ideas (verify facts)</h3><ul>{aiResult.feedback.suggested_bullets.map((x,i) => <li key={i}>{x}</li>)}</ul>
       </div>}
     </section>
     <section><h2>System status</h2>{statusError ? <p className="error">Backend connection failed: {statusError}</p> : !status ? <p>Checking services…</p> : <div className="stats"><div><span>API</span><strong>{status.api}</strong></div><div><span>PostgreSQL</span><strong>{status.database}</strong></div><div><span>pgvector</span><strong>{status.pgvector ? 'enabled' : 'unavailable'}</strong></div><div><span>Local LLM</span><strong>{status.ollama_model}</strong><small>Connectivity: {status.ollama}</small></div></div>}</section>

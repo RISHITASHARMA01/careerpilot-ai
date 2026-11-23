@@ -1,3 +1,5 @@
+from app.jobs import router as jobs_router
+from app.ai import router as ai_router
 from app.resume import router as resume_router
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -31,3 +33,7 @@ def status():
         return {"api": "online", "database": "unavailable", "pgvector": False, "ollama_model": settings.ollama_model, "ollama": "not checked"}
 
 app.include_router(resume_router)
+
+app.include_router(ai_router)
+
+app.include_router(jobs_router)
