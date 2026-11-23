@@ -58,6 +58,24 @@ export default function App() {
     finally { setAiLoading(false) }
   }
 
+
+  const [recommendations, setRecommendations] = useState<any[] | null>(null)
+  const [recommendError, setRecommendError] = useState('')
+  const [recommendLoading, setRecommendLoading] = useState(false)
+  async function requestRecommendations() {
+    if (!file) return
+    setRecommendLoading(true); setRecommendError(''); setRecommendations(null)
+    const form = new FormData()
+    form.append('resume', file); form.append('limit', '10')
+    try {
+      const response = await fetch(`${API}/api/v1/jobs/recommend`, {method: 'POST', body: form})
+      const data = await response.json()
+      if (!response.ok) throw new Error(typeof data.detail === 'string' ? data.detail : 'Recommendation request failed')
+      setRecommendations(data.results)
+    } catch (err) { setRecommendError(err instanceof Error ? err.message : 'Request failed') }
+    finally { setRecommendLoading(false) }
+  }
+
   return <main>
     <div className="eyebrow">CAREERPILOT AI · PHASE 3</div>
     <h1>Understand your resume. Find your next opportunity.</h1>
@@ -95,6 +113,23 @@ export default function App() {
         <h3>Strengths</h3><ul>{aiResult.feedback.strengths.map((x,i) => <li key={i}>{x}</li>)}</ul>
         <h3>Areas to improve</h3><ul>{aiResult.feedback.improvements.map((x,i) => <li key={i}>{x}</li>)}</ul>
         <h3>Suggested bullet ideas (verify facts)</h3><ul>{aiResult.feedback.suggested_bullets.map((x,i) => <li key={i}>{x}</li>)}</ul>
+      </div>}
+    </section>
+    <section>
+      <h2>Personalized job recommendations</h2>
+      <p className="muted">Uses the resume PDF selected above and jobs indexed in your local database. Scores are estimates, not hiring probabilities.</p>
+      <button type="button" disabled={!file || recommendLoading} onClick={requestRecommendations}>{recommendLoading ? 'Finding jobs…' : 'Recommend jobs from my resume'}</button>
+      {recommendError && <p role="alert" className="error">{recommendError}</p>}
+      {recommendations && <div className="results" aria-live="polite">
+        <h3>{recommendations.length} recommended jobs</h3>
+        {!recommendations.length && <p>No indexed jobs yet. Add jobs through the API first.</p>}
+        {recommendations.map(job => <article key={job.id} style={{borderBottom:'1px solid #33415c',padding:'18px 0'}}>
+          <h3>{job.title} — {job.company}</h3>
+          <p className="muted">{job.location} · Ranking score: {job.match_score}% · Semantic similarity: {Math.round(job.semantic_similarity*100)}%</p>
+          <p>Matched skills: {job.matched_skills.join(', ') || 'None detected'}</p>
+          <p>Skills to develop: {job.missing_skills.join(', ') || 'None detected'}</p>
+          {job.source_url && <a href={job.source_url} target="_blank" rel="noopener noreferrer">View job posting</a>}
+        </article>)}
       </div>}
     </section>
     <section><h2>System status</h2>{statusError ? <p className="error">Backend connection failed: {statusError}</p> : !status ? <p>Checking services…</p> : <div className="stats"><div><span>API</span><strong>{status.api}</strong></div><div><span>PostgreSQL</span><strong>{status.database}</strong></div><div><span>pgvector</span><strong>{status.pgvector ? 'enabled' : 'unavailable'}</strong></div><div><span>Local LLM</span><strong>{status.ollama_model}</strong><small>Connectivity: {status.ollama}</small></div></div>}</section>
